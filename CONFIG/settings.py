@@ -152,3 +152,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # FTP Server Configuration
 FTPSERVER_DIRECTORY = MEDIA_ROOT
+FTPSERVER_FILESYSTEM = 'django_ftpserver.filesystems.StorageFS'
