@@ -1,0 +1,7 @@
+asgiref==3.11.0
+Django==6.0
+django-ftpserver==0.8.0
+pyasynchat==1.0.4
+pyasyncore==1.0.4
+pyftpdlib==2.1.0
+sqlparse==0.5.4
