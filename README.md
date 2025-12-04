@@ -19,6 +19,13 @@ Start the FTP server (files written to `media/` by default):
 python manage.py ftpserver [addr:port]
 ```
 
+Note: By default the management command uses a non-privileged port (2121) to avoid permission errors on Unix systems. If you omit the `addr:port` argument and still see a permission error, it means the command is attempting to bind to a privileged port such as 21. Two options:
+
+- Start on a non-privileged port using an explicit port: `python manage.py ftpserver 0.0.0.0:8080` or `2121`.
+- Or update your Django settings to set `FTPSERVER_PORT` (e.g. `FTPSERVER_PORT = 2121`) so the command picks it up automatically.
+
+Warning: Binding to ports below 1024 (like port 21) usually requires root privileges and is not recommended for local development.
+
 Using AWS S3 for media storage
 --------------------------------
 1) Create an S3 bucket and choose a region.
