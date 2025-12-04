@@ -39,7 +39,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'myftp.urls'
+ROOT_URLCONF = 'CONFIG.urls'
 
 TEMPLATES = [
     {
@@ -56,7 +56,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'myftp.wsgi.application'
+WSGI_APPLICATION = 'CONFIG.wsgi.application'
 
 
 # Database
