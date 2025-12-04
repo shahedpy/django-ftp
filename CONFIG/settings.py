@@ -1,12 +1,15 @@
+"""CONFIG > settings.py"""
+
 import os
 from pathlib import Path
 
 try:
-    from local_settings import (
+    from .local_settings import (
         AWS_ACCESS_KEY_ID,
         AWS_SECRET_ACCESS_KEY,
         AWS_STORAGE_BUCKET_NAME,
-        AWS_S3_REGION_NAME
+        AWS_S3_REGION_NAME,
+        AWS_LOCATION,
     )
 except Exception:
     AWS_ACCESS_KEY_ID = None
@@ -123,33 +126,35 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 
-# AWS S3 Storage configuration ------------------------------------------------
-
-AWS_ACCESS_KEY_ID = AWS_ACCESS_KEY_ID
-AWS_SECRET_ACCESS_KEY = AWS_SECRET_ACCESS_KEY
-AWS_STORAGE_BUCKET_NAME = "dphe"
-AWS_S3_REGION_NAME = "ap-southeast-1"
-AWS_LOCATION = 'sw_data'
-
-if AWS_STORAGE_BUCKET_NAME:
-    DEFAULT_FILE_STORAGE = 'CONFIG.storages.MediaStorage'
-    AWS_QUERYSTRING_AUTH = False
-    AWS_S3_FILE_OVERWRITE = False
-    AWS_DEFAULT_ACL = None
-    MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/{AWS_LOCATION}/' # noqa
-else:
-    # Default to local media when no S3 bucket is configured
-    MEDIA_URL = '/media/'
-
-# Filesystem path for local media files (used by the FTP server and local dev)
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+
+# MEDIA / STORAGE -------------------------------------------------------------
+
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
+if AWS_STORAGE_BUCKET_NAME:
+    # Use S3-backed storage for media
+    DEFAULT_FILE_STORAGE = "CONFIG.storages.MediaStorage"
+    AWS_ACCESS_KEY_ID = AWS_ACCESS_KEY_ID
+    AWS_SECRET_ACCESS_KEY = AWS_SECRET_ACCESS_KEY
+    AWS_STORAGE_BUCKET_NAME = AWS_STORAGE_BUCKET_NAME
+    AWS_S3_REGION_NAME = AWS_S3_REGION_NAME
+    AWS_LOCATION = AWS_LOCATION
+
+    # recommended django-storages settings
+    AWS_QUERYSTRING_AUTH = False
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL = None
+
+    MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/{AWS_LOCATION}/" # noqa
+else:
+    # fall back to local media for development
+    MEDIA_URL = "/media/"
+
 # FTP Server Configuration
 FTPSERVER_DIRECTORY = MEDIA_ROOT
-FTPSERVER_FILESYSTEM = 'django_ftpserver.filesystems.StorageFS'
+FTPSERVER_FILESYSTEM = "CONFIG.filesystems.StorageFS"

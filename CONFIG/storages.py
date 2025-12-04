@@ -1,14 +1,14 @@
-from storages.backends.s3boto3 import S3Boto3Storage
+"""CONFIG>storages.py"""
+
 from django.conf import settings
+from storages.backends.s3boto3 import S3Boto3Storage
 
 
 class MediaStorage(S3Boto3Storage):
-    """Custom S3 storage class for media files.
-
-    Uses the `AWS_STORAGE_BUCKET_NAME` and `AWS_LOCATION` settings from
-    `CONFIG.settings` to store files under a common prefix inside the bucket.
     """
-    bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', None)
-    location = getattr(settings, 'AWS_LOCATION', '')
-    file_overwrite = False
+    S3 storage for media files. Uses settings.AWS_LOCATION (e.g. 'sw_data')
+    as `location` so uploaded keys are placed under that prefix.
+    """
+    location = getattr(settings, "AWS_LOCATION", "")
     default_acl = None
+    file_overwrite = False
