@@ -46,27 +46,32 @@ class FileSystemStoragePatch(StoragePatch):
     patch_methods = ("mkdir", "rmdir", "stat")
 
     def mkdir(self, path):
-        self.storage.save(self._storage_name(path).rstrip("/") + "/", b"")
+        # allow the path to be a filesystem path or ftp-style
+        ftp_path = self._ensure_ftp_path(path) if hasattr(self, '_ensure_ftp_path') else path
+        self.storage.save(self._storage_name(ftp_path).rstrip("/") + "/", b"")
 
     def rmdir(self, path):
         # local filesystem storage: delegate to os.rmdir if storage exposes path
         if hasattr(self.storage, "path"):
-            os.rmdir(self.storage.path(self._storage_name(path)))
+            ftp_path = self._ensure_ftp_path(path) if hasattr(self, '_ensure_ftp_path') else path
+            os.rmdir(self.storage.path(self._storage_name(ftp_path)))
         else:
             # fallback: try deleting placeholder directory if any
             raise NotImplementedError("rmdir not supported for this storage")
 
     def stat(self, path):
-        return os.stat(self.storage.path(self._storage_name(path)))
+        ftp_path = self._ensure_ftp_path(path) if hasattr(self, '_ensure_ftp_path') else path
+        return os.stat(self.storage.path(self._storage_name(ftp_path)))
 
 
 class S3Boto3StoragePatch(StoragePatch):
     patch_methods = ("_exists", "isdir", "getmtime")
 
     def _exists(self, path):
-        if path.endswith("/"):
+        ftp_path = self._ensure_ftp_path(path) if hasattr(self, '_ensure_ftp_path') else path
+        if ftp_path.endswith("/"):
             return True
-        return self.storage.exists(self._storage_name(path))
+        return self.storage.exists(self._storage_name(ftp_path))
 
     def isdir(self, path):
         return not self.isfile(path)
@@ -74,16 +79,18 @@ class S3Boto3StoragePatch(StoragePatch):
     def getmtime(self, path):
         if self.isdir(path):
             return 0
-        return self._origin_getmtime(self._storage_name(path))
+        ftp_path = self._ensure_ftp_path(path) if hasattr(self, '_ensure_ftp_path') else path
+        return self._origin_getmtime(self._storage_name(ftp_path))
 
 
 class DjangoGCloudStoragePatch(StoragePatch):
     patch_methods = ("_exists", "isdir", "getmtime", "listdir")
 
     def _exists(self, path):
-        if path.endswith("/"):
+        ftp_path = self._ensure_ftp_path(path) if hasattr(self, '_ensure_ftp_path') else path
+        if ftp_path.endswith("/"):
             return True
-        return self.storage.exists(self._storage_name(path))
+        return self.storage.exists(self._storage_name(ftp_path))
 
     def isdir(self, path):
         return not self.isfile(path)
@@ -91,12 +98,14 @@ class DjangoGCloudStoragePatch(StoragePatch):
     def getmtime(self, path):
         if self.isdir(path):
             return 0
-        return self._origin_getmtime(path)
+        ftp_path = self._ensure_ftp_path(path) if hasattr(self, '_ensure_ftp_path') else path
+        return self._origin_getmtime(ftp_path)
 
     def listdir(self, path):
-        if not path.endswith("/"):
-            path += "/"
-        return self._origin_listdir(self._storage_name(path))
+        ftp_path = self._ensure_ftp_path(path) if hasattr(self, '_ensure_ftp_path') else path
+        if not ftp_path.endswith("/"):
+            ftp_path += "/"
+        return self._origin_listdir(self._storage_name(ftp_path))
 
 
 class StorageFS(AbstractedFS):
@@ -155,6 +164,35 @@ class StorageFS(AbstractedFS):
             return base + path.lstrip("/")
         return base + "/" + path.lstrip("/")
 
+    def _ensure_ftp_path(self, path):
+        """
+        Accept either a real filesystem path (as passed by pyftpdlib
+        handlers) or an FTP-style path and return an FTP-style path.
+
+        - If `path` is a filesystem path under self.root, convert it
+          to an FTP-style path using fs2ftp.
+        - Otherwise assume the argument is already an FTP-style path
+          and normalize it via _make_ftp_path.
+        """
+        # default: root and variants
+        if path in (None, "", "/"):
+            return "/"
+        # If path looks like an absolute real filesystem path and starts
+        # with the configured root, convert it back to ftp style.
+        try:
+            if os.path.isabs(path) and self.root and os.path.normpath(path).startswith(os.path.normpath(self.root)):
+                # compute relative path to root without calling fs2ftp to avoid recursion
+                rel = os.path.relpath(path, self.root)
+                # rel may be '.' if path == root
+                if rel in ('.', ''):
+                    return "/"
+                # Always return slash-prefixed ftp-style path with POSIX separators
+                return "/" + rel.replace(os.sep, "/")
+        except Exception:
+            # fallback to ftp style
+            pass
+        return self._make_ftp_path(path)
+
     def _storage_name(self, ftp_path):
         """
         Convert an FTP-style path to a storage-relative key.
@@ -195,7 +233,7 @@ class StorageFS(AbstractedFS):
     def chdir(self, path):
         """Change current directory. Keep as FTP-style path."""
         assert isinstance(path, str), path
-        ftp_path = self._make_ftp_path(path)
+        ftp_path = self._ensure_ftp_path(path)
         # normalize trailing slash: directories in FTP are represented with '/'
         if ftp_path != "/" and ftp_path.endswith("/"):
             ftp_path = ftp_path.rstrip("/")
@@ -204,7 +242,7 @@ class StorageFS(AbstractedFS):
     def open(self, filename, mode="rb"):
         """Open a file using storage backend. filename may be absolute or relative."""
         assert isinstance(filename, str), filename
-        ftp_path = self._make_ftp_path(filename)
+        ftp_path = self._ensure_ftp_path(filename)
         key = self._storage_name(ftp_path)
         try:
             return self.storage.open(key, mode)
@@ -217,7 +255,7 @@ class StorageFS(AbstractedFS):
     def mkdir(self, path):
         """Create a pseudo-directory if backend supports it (S3 usually doesn't
         have real folders; many apps create zero-length object with trailing '/')."""
-        ftp_path = self._make_ftp_path(path)
+        ftp_path = self._ensure_ftp_path(path)
         key = self._storage_name(ftp_path)
         if not key.endswith("/"):
             key = key + "/"
@@ -231,8 +269,9 @@ class StorageFS(AbstractedFS):
 
     def listdir(self, path):
         assert isinstance(path, str), path
-        ftp_path = self._make_ftp_path(path)
+        ftp_path = self._ensure_ftp_path(path)
         key = self._storage_name(ftp_path)
+        logger.debug("StorageFS.listdir called with path=%r ftp_path=%r key=%r", path, ftp_path, key)
         # many storages expect '' for root
         if key != "" and not key.endswith("/"):
             key = key + "/"
@@ -246,7 +285,7 @@ class StorageFS(AbstractedFS):
             raise OSError(errno.ENOENT, "No such directory", path)
 
     def rmdir(self, path):
-        ftp_path = self._make_ftp_path(path)
+        ftp_path = self._ensure_ftp_path(path)
         key = self._storage_name(ftp_path)
         if not key.endswith("/"):
             key = key + "/"
@@ -260,7 +299,7 @@ class StorageFS(AbstractedFS):
 
     def remove(self, path):
         assert isinstance(path, str), path
-        ftp_path = self._make_ftp_path(path)
+        ftp_path = self._ensure_ftp_path(path)
         key = self._storage_name(ftp_path)
         try:
             self.storage.delete(key)
@@ -300,7 +339,7 @@ class StorageFS(AbstractedFS):
         if path in (None, "", "/"):
             name = ""
         else:
-            ftp_path = self._make_ftp_path(path)
+            ftp_path = self._ensure_ftp_path(path)
             name = self._storage_name(ftp_path)
         try:
             return self.storage.exists(name)
@@ -311,7 +350,7 @@ class StorageFS(AbstractedFS):
         # file if exists and not endswith '/'
         if path in (None, "", "/"):
             return False
-        ftp_path = self._make_ftp_path(path)
+        ftp_path = self._ensure_ftp_path(path)
         if ftp_path.endswith("/"):
             return False
         return self._exists(path)
@@ -321,7 +360,7 @@ class StorageFS(AbstractedFS):
 
     def isdir(self, path):
         # '' or '/' is root directory
-        ftp_path = self._make_ftp_path(path)
+        ftp_path = self._ensure_ftp_path(path)
         if ftp_path in ("/", ""):
             return True
         # directory if exists with trailing slash or exists as prefix
@@ -332,7 +371,7 @@ class StorageFS(AbstractedFS):
     def getsize(self, path):
         if self.isdir(path):
             return 0
-        ftp_path = self._make_ftp_path(path)
+        ftp_path = self._ensure_ftp_path(path)
         key = self._storage_name(ftp_path)
         try:
             return self.storage.size(key)
@@ -343,7 +382,7 @@ class StorageFS(AbstractedFS):
         # dirs -> 0; files -> use storage.get_modified_time
         if self.isdir(path):
             return 0
-        ftp_path = self._make_ftp_path(path)
+        ftp_path = self._ensure_ftp_path(path)
         key = self._storage_name(ftp_path)
         try:
             dt = self.storage.get_modified_time(key)
@@ -360,7 +399,7 @@ class StorageFS(AbstractedFS):
 
     def realpath(self, path):
         # return ftp-style path
-        return self._make_ftp_path(path)
+        return self._ensure_ftp_path(path)
 
     def lexists(self, path):
         return self._exists(path)
