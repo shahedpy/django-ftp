@@ -3,9 +3,9 @@
 Python: 3.14
 
 ```
-python manage.py runserver
+python manage.py runserver [addr:port]
 ```
 
 ```
-sudo python manage.py ftpserver 0.0.0.0:8080
+python manage.py ftpserver [addr:port]
 ```
