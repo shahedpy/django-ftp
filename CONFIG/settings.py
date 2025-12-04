@@ -1,6 +1,19 @@
 import os
 from pathlib import Path
-from local_settings import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+
+# Prefer local_settings for local development, but fall back to environment variables.
+try:
+    from local_settings import (  # noqa: F401
+        AWS_ACCESS_KEY_ID as AWS_ACCESS_KEY_ID,
+        AWS_SECRET_ACCESS_KEY as AWS_SECRET_ACCESS_KEY,
+        AWS_STORAGE_BUCKET_NAME as AWS_STORAGE_BUCKET_NAME,
+        AWS_S3_REGION_NAME as AWS_S3_REGION_NAME,
+    )
+except Exception:
+    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'ap-southeast-1')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -125,6 +138,15 @@ if AWS_STORAGE_BUCKET_NAME:
     AWS_S3_FILE_OVERWRITE = False
     AWS_DEFAULT_ACL = None
     MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/{AWS_LOCATION}/' # noqa
+    # Configure FTP server to use a storage-backed filesystem so the FTP user
+    # sees S3 contents directly.
+    FTPSERVER_FILESYSTEM = 'CONFIG.ftpfilesystems.DjangoStorageAbstractedFS'
+else:
+    # Default to local media when no S3 bucket is configured
+    MEDIA_URL = '/media/'
+
+# Filesystem path for local media files (used by the FTP server and local dev)
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
 # Default primary key field type
@@ -133,4 +155,4 @@ if AWS_STORAGE_BUCKET_NAME:
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # FTP Server Configuration
-FTPSERVER_DIRECTORY = os.path.join(BASE_DIR, 'media',)
+FTPSERVER_DIRECTORY = MEDIA_ROOT
