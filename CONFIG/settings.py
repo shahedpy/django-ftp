@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from local_settings import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -109,38 +110,21 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
 
 ### AWS S3 Storage configuration ------------------------------------------------
-# If you want to use Amazon S3 as the default storage for uploaded files, set
-# the following environment variables in your deployment environment:
-#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_STORAGE_BUCKET_NAME
-# Optionally: AWS_S3_REGION_NAME, AWS_S3_ENDPOINT_URL
 
-AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
-AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME')
-AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL')
-# prefix inside the bucket where media files will be stored
-AWS_LOCATION = os.environ.get('AWS_LOCATION', 'sw_data')
+AWS_ACCESS_KEY_ID = AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY = AWS_SECRET_ACCESS_KEY
+AWS_STORAGE_BUCKET_NAME = "dphe"
+AWS_S3_REGION_NAME = "ap-southeast-1"
+AWS_LOCATION = 'sw_data'
 
-# If a bucket name is provided, configure Django to use S3 for media files.
 if AWS_STORAGE_BUCKET_NAME:
-    # Use a small custom storage class to ensure files are stored under the
-    # configued `AWS_LOCATION` (default 'sw_data') in the bucket.
     DEFAULT_FILE_STORAGE = 'CONFIG.storages.MediaStorage'
-    # Optional recommended settings
     AWS_QUERYSTRING_AUTH = False
     AWS_S3_FILE_OVERWRITE = False
     AWS_DEFAULT_ACL = None
-    # Media URL points to the S3 location (if using a custom domain, update AWS_S3_CUSTOM_DOMAIN)
-    AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN')
-    if AWS_S3_CUSTOM_DOMAIN:
-        MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/'
-    else:
-        MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/{AWS_LOCATION}/'
+    MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/{AWS_LOCATION}/'
 
 
 # Default primary key field type
