@@ -137,9 +137,37 @@ class StorageFS(AbstractedFS):
 
     def get_storage_class(self):
         if self.storage_class is None:
-            # lazy import via django's helper
-            from django.core.files.storage import get_storage_class as _get_storage_class
-            return _get_storage_class()
+            # In Django < 6 a helper named `get_storage_class` may be available.
+            # Newer Django versions removed that exported helper; prefer reading
+            # DEFAULT_FILE_STORAGE or STORAGES settings and import the backend
+            # class directly so this module works with several Django versions.
+            try:
+                # try the old helper first (if present)
+                from django.core.files.storage import get_storage_class as _get_storage_class
+                return _get_storage_class()
+            except Exception:
+                # fallback: import from settings or STORAGES mapping
+                from django.conf import settings
+                from django.utils.module_loading import import_string
+
+                # If DEFAULT_FILE_STORAGE is configured, use that
+                default_storage_path = getattr(settings, "DEFAULT_FILE_STORAGE", None)
+                if default_storage_path:
+                    return import_string(default_storage_path)
+
+                # If STORAGES mapping is used (Django 4.2+), try to extract backend
+                storages_conf = getattr(settings, "STORAGES", None)
+                if isinstance(storages_conf, dict):
+                    # Django's STORAGES uses 'default' key by convention
+                    conf = storages_conf.get("default") or storages_conf.get("DEFAULT")
+                    if isinstance(conf, dict):
+                        backend_path = conf.get("BACKEND")
+                        if backend_path:
+                            return import_string(backend_path)
+
+                # final fallback to default FileSystemStorage
+                from django.core.files.storage import FileSystemStorage
+                return FileSystemStorage
         return self.storage_class
 
     def get_storage(self):
