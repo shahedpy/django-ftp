@@ -360,8 +360,9 @@ class StorageFS(AbstractedFS):
             key = key + "/"
         try:
             directories, files = self.storage.listdir(key)
-            # normalize directories to FTP style (with trailing '/')
-            dirs = [d.rstrip("/") + "/" for d in directories if d]
+            # Return directory names WITHOUT trailing slash - pyftpdlib identifies
+            # directories through stat() st_mode, not through trailing slashes
+            dirs = [d.rstrip("/") for d in directories if d]
             files = [f for f in files if f]
             return dirs + files
         except FileNotFoundError:
