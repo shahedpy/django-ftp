@@ -1,0 +1,15 @@
+[Unit]
+Description=AQUAWATCH FTP Server
+After=network.target
+
+[Service]
+User=ec2-user
+Group=nginx
+WorkingDirectory=/opt/AQUAWATCH-FTP
+Environment="PATH=/opt/AQUAWATCH-FTP/venv/bin"
+ExecStart=/opt/AQUAWATCH-FTP/venv/bin/python /opt/AQUAWATCH-FTP/manage.py ftpserver 0.0.0.0:2121
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
