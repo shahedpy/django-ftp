@@ -5,6 +5,16 @@ from pathlib import Path
 
 try:
     from .local_settings import (
+        SECRET_KEY,
+        DEBUG,
+        ALLOWED_HOSTS,
+
+        STATIC_DIR,
+        STATICFILES_DIR,
+
+        FTPSERVER_MASQUERADE_ADDRESS,
+        FTPSERVER_PASSIVE_PORTS,
+
         AWS_ACCESS_KEY_ID,
         AWS_SECRET_ACCESS_KEY,
         AWS_STORAGE_BUCKET_NAME,
@@ -24,16 +34,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-hs%zr_splo78m$m4j2&^k39tziy8c76b!sf%i*2m^uscksyils'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
-
-
-# Application definition
+SECRET_KEY = SECRET_KEY
+DEBUG = DEBUG
+ALLOWED_HOSTS = ALLOWED_HOSTS
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -124,6 +127,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = STATIC_DIR
+STATICFILES_DIRS = [STATICFILES_DIR]
 
 
 # Default primary key field type
@@ -159,3 +164,18 @@ else:
 FTPSERVER_DIRECTORY = MEDIA_ROOT
 FTPSERVER_FILESYSTEM = "CONFIG.filesystems.StorageFS"
 FTPSERVER_PORT = 2121
+
+# Optional: configure a public IP or hostname that the FTP server advertises
+# for PASV (passive) connections. Set this to your Lightsail public IP or
+# public domain if the instance is behind NAT. Example:
+FTPSERVER_MASQUERADE_ADDRESS = FTPSERVER_MASQUERADE_ADDRESS  # replace with your public IP
+
+# Optional: configure a passive port range (server uses these ports for
+# data connections in PASV mode). Make sure to open this range in Lightsail
+# and OS firewall. Example:
+FTPSERVER_PASSIVE_PORTS = FTPSERVER_PASSIVE_PORTS
+
+# Optional: To accept PORT/active connections to foreign IPs (not recommended
+# for most deployments) you can set a custom handler where
+# `permit_foreign_addresses = True`. See CONFIG/ftp_handler.py for an example.
+FTPSERVER_HANDLER = 'CONFIG.ftp_handler.PermissiveFTPHandler'

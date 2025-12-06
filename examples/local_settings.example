@@ -1,12 +1,31 @@
-"""
-Example local_settings.py for development. Do NOT commit your real credentials.
+import os
 
-Copy this file to `CONFIG/local_settings.py` and update values, or prefer
-setting the AWS credentials via environment variables in production.
-"""
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = 'django-insecure-hs%zr_splo78m$m4j2&^k39tziy8c76b!sf%i*2m^uscksyils'
+
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = True
+
+ALLOWED_HOSTS = [
+    '127.0.0.1',
+]
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+STATICFILES_DIR = os.path.join(BASE_DIR, "staticfiles")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+MEDIA_DIR = os.path.join(BASE_DIR, "media")
+LOGS_DIR = os.path.join(BASE_DIR, "logs")
 
 AWS_ACCESS_KEY_ID = "your-aws-access-key-id"
 AWS_SECRET_ACCESS_KEY = "your-aws-secret-access-key"
 AWS_STORAGE_BUCKET_NAME = "your-bucket-name"
 AWS_S3_REGION_NAME = "ap-southeast-1"
 AWS_LOCATION = "sw_data"
+
+# FTP server settings
+# change to your server public IP or domain if the server is behind NAT
+FTPSERVER_MASQUERADE_ADDRESS = '203.0.113.52'  # replace with your public IP
+FTPSERVER_PASSIVE_PORTS = '30000-30100'
+# Optional: Use a custom handler that permits foreign/active addresses
+FTPSERVER_HANDLER = 'CONFIG.ftp_handler.PermissiveFTPHandler'

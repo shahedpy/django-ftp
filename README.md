@@ -71,6 +71,18 @@ sudo firewall-cmd --reload
 # sudo firewall-cmd --reload
 ```
 
+If you use passive mode (recommended for NAT), configure a passive port
+range and open it too:
+
+```bash
+# Example passive port range
+sudo firewall-cmd --permanent --add-port=30000-30100/tcp
+sudo firewall-cmd --reload
+```
+
+And in the Lightsail console (Networking -> Firewall) add inbound rules to
+allow TCP ports 2121 and 30000-30100 as needed.
+
 ### 4. Create Systemd Service
 
 Create a systemd service file at `/etc/systemd/system/django-ftp.service`:
@@ -270,6 +282,30 @@ Host: your-server-ip
 Port: 2121 (or 21 if you changed it)
 Username: <your-ftp-username>
 Password: <your-ftp-password>
+```
+
+Tip: If you see errors in the server logs like:
+
+```
+501 Rejected data connection to foreign address <private-ip>:<port>
+500 Command "LPRT" not understood.
+```
+
+It means the client used active mode (PORT/LPRT) that requests the server to
+connect back to the client IP. For clients behind NAT this usually fails.
+
+Recommended fixes:
+- Use passive mode on the client.
+- Or set `FTPSERVER_MASQUERADE_ADDRESS` to your public IP/domain and
+    `FTPSERVER_PASSIVE_PORTS` to a fixed range, then open those ports in Lightsail
+    and in the host firewall.
+- (Optional, less secure) Use a permissive handler to accept active/foreign
+    addresses by setting `FTPSERVER_HANDLER = 'CONFIG.ftp_handler.PermissiveFTPHandler'`.
+
+Example connecting in passive mode with CLI `lftp`:
+
+```bash
+lftp -u user,password -e "set ftp:passive-mode yes; ls; quit" ftp://ftp.aquawatch.dphe.online:2121
 ```
 
 Command line example:
