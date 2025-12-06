@@ -277,3 +277,12 @@ Command line example:
 ```bash
 ftp your-server-ip 2121
 ```
+
+FTP Commands:
+```
+ls          # List files
+cd <dir>    # Change directory
+get <file>  # Download file
+put <file>  # Upload file
+bye         # Exit FTP
+```
