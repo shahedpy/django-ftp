@@ -280,9 +280,11 @@ ftp your-server-ip 2121
 
 FTP Commands:
 ```
-ls          # List files
-cd <dir>    # Change directory
-get <file>  # Download file
-put <file>  # Upload file
-bye         # Exit FTP
+ls            # List files
+cd <dir>      # Change directory
+get <file>    # Download file
+put <file>    # Upload file
+delete <file> # Delete file
+quit          # Log out
+bye           # Exit FTP
 ```
