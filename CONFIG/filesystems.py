@@ -65,16 +65,61 @@ class FileSystemStoragePatch(StoragePatch):
 
 
 class S3Boto3StoragePatch(StoragePatch):
-    patch_methods = ("_exists", "isdir", "getmtime")
+    patch_methods = ("_exists", "isdir", "getmtime", "isfile")
 
     def _exists(self, path):
         ftp_path = self._ensure_ftp_path(path) if hasattr(self, '_ensure_ftp_path') else path
+        # For paths ending with slash, check if it's a valid directory prefix
         if ftp_path.endswith("/"):
-            return True
+            key = self._storage_name(ftp_path) if hasattr(self, '_storage_name') else ftp_path
+            if not key:  # root
+                return True
+            try:
+                dirs, files = self.storage.listdir(key)
+                return bool(dirs or files)
+            except Exception:
+                return False
         return self.storage.exists(self._storage_name(ftp_path))
 
+    def isfile(self, path):
+        """Check if path is a file in S3."""
+        if path in (None, "", "/"):
+            return False
+        ftp_path = self._ensure_ftp_path(path) if hasattr(self, '_ensure_ftp_path') else path
+        # Paths ending with / are never files
+        if ftp_path.endswith("/"):
+            return False
+        # Check if the object exists in S3
+        key = self._storage_name(ftp_path) if hasattr(self, '_storage_name') else ftp_path
+        return self.storage.exists(key)
+
     def isdir(self, path):
-        return not self.isfile(path)
+        """Check if path is a directory in S3 by checking for common prefixes."""
+        ftp_path = self._ensure_ftp_path(path) if hasattr(self, '_ensure_ftp_path') else path
+
+        # Root is always a directory
+        if ftp_path in ("/", ""):
+            return True
+
+        # Remove trailing slash for checking
+        ftp_path_clean = ftp_path.rstrip("/")
+
+        # If it's explicitly a file, it's not a directory
+        if self.isfile(ftp_path_clean):
+            return False
+
+        # Check if there are any objects under this prefix (common prefix check)
+        key = self._storage_name(ftp_path_clean)
+        if key and not key.endswith("/"):
+            key = key + "/"
+
+        try:
+            # Check if there are any files or subdirectories under this path
+            dirs, files = self.storage.listdir(key)
+            return bool(dirs or files)
+        except Exception:
+            # If we can't list it, it's not a valid directory
+            return False
 
     def getmtime(self, path):
         if self.isdir(path):
@@ -120,13 +165,23 @@ class StorageFS(AbstractedFS):
     patches = {
         "FileSystemStorage": FileSystemStoragePatch,
         "S3Boto3Storage": S3Boto3StoragePatch,
+        "S3Storage": S3Boto3StoragePatch,  # S3Boto3Storage is aliased as S3Storage
         "DjangoGCloudStorage": DjangoGCloudStoragePatch,
     }
 
     def apply_patch(self):
+        # First try exact class name match
         patch = self.patches.get(self.storage.__class__.__name__)
         if patch:
             patch.apply(self)
+            return
+        
+        # If no exact match, check base classes (for subclasses like MediaStorage extending S3Boto3Storage)
+        for base_class in self.storage.__class__.__mro__:
+            patch = self.patches.get(base_class.__name__)
+            if patch:
+                patch.apply(self)
+                return
 
     def __init__(self, root, cmd_channel):
         super(StorageFS, self).__init__(root, cmd_channel)
@@ -340,12 +395,20 @@ class StorageFS(AbstractedFS):
     def stat(self, path):
         """Return a PseudoStat. Raise OSError with errno when missing."""
         try:
-            if self.isfile(path):
+            # Clean up path - remove trailing slash for checking
+            clean_path = path.rstrip("/") if path not in ("/", "") else path
+            
+            if self.isfile(clean_path):
                 st_mode = 0o0100770
-            else:
+                size = self.getsize(clean_path)
+                mtime = int(self.getmtime(clean_path))
+            elif self.isdir(clean_path):
                 st_mode = 0o0040770
-            size = self.getsize(path)
-            mtime = int(self.getmtime(path))
+                size = 0
+                mtime = 0
+            else:
+                raise OSError(errno.ENOENT, "No such file or directory", path)
+            
             return PseudoStat(
                 st_size=size,
                 st_mtime=mtime,
