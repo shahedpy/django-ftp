@@ -1,0 +1,16 @@
+[Unit]
+Description=DPHE-AQUAWATCH-uWSGI-instance
+
+[Service]
+User=ec2-user
+Group=nginx
+WorkingDirectory=/opt/AQUAWATCH-FTP
+Environment="PATH=/opt/AQUAWATCH-FTP/venv/bin"
+ExecStart=/opt/AQUAWATCH-FTP/venv/bin/uwsgi --ini /opt/AQUAWATCH-FTP/uwsgi/uwsgi.ini
+Restart=always
+KillSignal=SIGQUIT
+Type=notify
+NotifyAccess=all
+
+[Install]
+WantedBy=multi-user.target
