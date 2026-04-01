@@ -1,0 +1,28 @@
+upstream aquawatch_ftp {
+        server unix:/opt/AQUAWATCH-FTP/uwsgi/uwsgi.sock;
+}
+
+server {
+        server_name ftp.aquawatch.dphe.online;
+
+        access_log /opt/AQUAWATCH-FTP/logs/access.log;
+        error_log /opt/AQUAWATCH-FTP/logs/error.log;
+
+        charset utf-8;
+        client_max_body_size 60M;
+
+        location /static {
+                alias /opt/AQUAWATCH-FTP/static;
+        }
+
+        location /media {
+                alias /opt/AQUAWATCH-FTP/media;
+        }
+
+        location / {
+                uwsgi_pass aquawatch_ftp;
+                include uwsgi_params;
+                uwsgi_read_timeout 300s;
+                uwsgi_send_timeout 300s;
+        }
+}
