@@ -1,0 +1,21 @@
+[uwsgi]
+
+# Django-related settings
+# the base directory (full path)
+chdir           = /opt/AQUAWATCH-FTP
+#beach #puri #sagar #odisha #youtubeshorts #shorts
+# Django's wsgi file (this will be the folder name where wsgi.py and settings.py is)
+module          = CONFIG.wsgi
+# the virtualenv (full path)
+home            = /opt/AQUAWATCH-FTP/venv
+# process-related settings
+# master
+master          = true
+# maximum number of worker processes
+processes       = 10
+# the socket (use the full path to be safe
+socket          = /opt/AQUAWATCH-FTP/uwsgi/uwsgi.sock
+# ... with appropriate permissions - may be needed
+chmod-socket    = 666
+# clear environment on exit
+vacuum          = true
